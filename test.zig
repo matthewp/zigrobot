@@ -45,3 +45,27 @@ test "A guard can prevent a transition" {
 
   expectEqual(state.name, "one");
 }
+
+test "A guard can conditionally prevent a transition" {
+  var transition = robot.transition("next", "two");
+  const my_guard = struct {
+    fn myGuard() bool {
+      return false;
+    }
+  }.myGuard;
+  addGuard(&transition, my_guard);
+
+  const states = [_] State {
+    robot.state("one", &[_]Transition {
+      transition
+    }),
+    robot.state("two", &[_]Transition {})
+  };
+
+  const machine = createMachine(&states);
+  var state = machine.initial;
+
+  state = robot.send(machine, state, .{ .name = "next" });
+
+  expectEqual(state.name, "one");
+}

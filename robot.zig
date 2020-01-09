@@ -17,7 +17,8 @@ pub const State = struct {
 
 pub const Machine = struct {
   initial: State,
-  states: []const State
+  states: []const State,
+  data: void,
 };
 
 pub const Event = struct {
@@ -61,9 +62,13 @@ pub fn state(name: []const u8, transitions: []const Transition) State {
 pub fn createMachine(states: []const State) Machine {
   const initial = states[0];
 
+  const mytype = struct {};
+  var thing = mytype{};
+
   return Machine{
     .initial = initial,
-    .states = states
+    .states = states,
+    .data = thing
   };
 }
 
