@@ -8,7 +8,7 @@ test "Can do basic transitions" {
 
   const MyMachine = robot.Machine(Data);
 
-  var machine = MyMachine.init();
+  var machine = MyMachine.init(&Data{});
 
   var states = &[_]MyMachine.State {
     machine.state("one", &[_]MyMachine.Transition {
@@ -29,11 +29,11 @@ test "Can do basic transitions" {
 test "A guard can prevent a transition" {
   const Data = struct {};
   const MyMachine = robot.Machine(Data);
-  var machine = MyMachine.init();
+  var machine = MyMachine.init(&Data{});
   var transition = machine.transition("next", "two");
 
   const return_false = struct {
-    fn returnFalse() bool {
+    fn returnFalse(d: *Data) bool {
       return false;
     }
   }.returnFalse;
@@ -55,14 +55,18 @@ test "A guard can prevent a transition" {
 }
 
 test "A guard can conditionally prevent a transition" {
-  const Data = struct {};
+  const Data = struct {
+    pass: bool = false
+  };
+
   const MyMachine = robot.Machine(Data);
-  var machine = MyMachine.init();
+  var data = Data{};
+  var machine = MyMachine.init(&data);
 
   var transition = machine.transition("next", "two");
   const my_guard = struct {
-    fn myGuard() bool {
-      return false;
+    fn myGuard(d: *Data) bool {
+      return d.pass;
     }
   }.myGuard;
   machine.guard(&transition, my_guard);
@@ -78,6 +82,9 @@ test "A guard can conditionally prevent a transition" {
   var state = machine.initial;
 
   state = machine.send(state, .{ .name = "next" });
-
   expectEqual(state.name, "one");
+
+  data.pass = true;
+  state = machine.send(state, .{ .name = "next" });
+  expectEqual(state.name, "two");
 }

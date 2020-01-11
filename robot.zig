@@ -1,8 +1,6 @@
 const std = @import("std");
 
-fn defaultGuard() bool {
-  return true;
-}
+
 
 fn LinkedList(comptime T: type) type {
   return struct {
@@ -24,10 +22,14 @@ pub const Event = struct {
 
 pub fn Machine(comptime T: type) type {
   return struct {
+    fn defaultGuard(data: *T) bool {
+      return true;
+    }
+
     pub const Transition = struct {
       from: []const u8,
       to: []const u8,
-      guard_fn: fn () bool = defaultGuard
+      guard_fn: fn (data: *T) bool = defaultGuard
     };
 
     pub const State = struct {
@@ -38,13 +40,15 @@ pub fn Machine(comptime T: type) type {
     const Self = @This();
     const ListOfTransitions = LinkedList(Transition);
 
+    data: *T,
     initial: State,
     currentStates: []State,
 
-    pub fn init() Self {
+    pub fn init(data: *T) Self {
       return Self{
         .initial = undefined,
         .currentStates = &[_]State{},
+        .data = data,
       };
     }
 
@@ -55,7 +59,7 @@ pub fn Machine(comptime T: type) type {
       };
     }
 
-    pub fn guard(self: *Self, t: *Transition, comptime gfn: fn () bool) void {
+    pub fn guard(self: *Self, t: *Transition, comptime gfn: fn (data: *T) bool) void {
       t.guard_fn = gfn;
     }
 
@@ -81,7 +85,7 @@ pub fn Machine(comptime T: type) type {
 
         
 
-        var guard_passed = t.guard_fn();
+        var guard_passed = t.guard_fn(self.data);
         if(!guard_passed) {
           continue;
         }
