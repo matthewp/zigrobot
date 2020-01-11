@@ -2,70 +2,82 @@ const std = @import("std");
 const expectEqual = std.testing.expectEqual;
 
 const robot = @import("robot.zig");
-const State = robot.State;
-const Transition = robot.Transition;
-const createMachine = robot.createMachine;
-const addGuard = robot.addGuard;
 
 test "Can do basic transitions" {
-  const states = [_]State {
-    robot.state("one", &[_]Transition {
-      robot.transition("next", "two")
+  const Data = struct {};
+
+  const MyMachine = robot.Machine(Data);
+
+  var machine = MyMachine.init();
+
+  var states = &[_]MyMachine.State {
+    machine.state("one", &[_]MyMachine.Transition {
+      machine.transition("next", "two")
     }),
-    robot.state("two", &[_]Transition {})
+    machine.state("two", &[_]MyMachine.Transition {})
   };
 
-  const machine = createMachine(&states);
+  machine.states(states);
+
   var state = machine.initial;
 
-  state = robot.send(machine, state, .{ .name = "next" });
+  state = machine.send(state, .{ .name = "next" });
 
   expectEqual(state.name, "two");
 }
 
-fn returnFalse() bool {
-  return false;
-}
-
 test "A guard can prevent a transition" {
-  var transition = robot.transition("next", "two");
-  addGuard(&transition, returnFalse);
+  const Data = struct {};
+  const MyMachine = robot.Machine(Data);
+  var machine = MyMachine.init();
+  var transition = machine.transition("next", "two");
 
-  const states = [_] State {
-    robot.state("one", &[_]Transition {
+  const return_false = struct {
+    fn returnFalse() bool {
+      return false;
+    }
+  }.returnFalse;
+  machine.guard(&transition, return_false);
+
+  const states = &[_]MyMachine.State {
+    machine.state("one", &[_]MyMachine.Transition {
       transition
     }),
-    robot.state("two", &[_]Transition {})
+    machine.state("two", &[_]MyMachine.Transition {})
   };
 
-  const machine = createMachine(&states);
+  machine.states(states);
   var state = machine.initial;
 
-  state = robot.send(machine, state, .{ .name = "next" });
+  state = machine.send(state, .{ .name = "next" });
 
   expectEqual(state.name, "one");
 }
 
 test "A guard can conditionally prevent a transition" {
-  var transition = robot.transition("next", "two");
+  const Data = struct {};
+  const MyMachine = robot.Machine(Data);
+  var machine = MyMachine.init();
+
+  var transition = machine.transition("next", "two");
   const my_guard = struct {
     fn myGuard() bool {
       return false;
     }
   }.myGuard;
-  addGuard(&transition, my_guard);
+  machine.guard(&transition, my_guard);
 
-  const states = [_] State {
-    robot.state("one", &[_]Transition {
+  const states = &[_] MyMachine.State {
+    machine.state("one", &[_]MyMachine.Transition {
       transition
     }),
-    robot.state("two", &[_]Transition {})
+    machine.state("two", &[_]MyMachine.Transition {})
   };
 
-  const machine = createMachine(&states);
+  machine.states(states);
   var state = machine.initial;
 
-  state = robot.send(machine, state, .{ .name = "next" });
+  state = machine.send(state, .{ .name = "next" });
 
   expectEqual(state.name, "one");
 }
