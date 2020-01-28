@@ -28,15 +28,27 @@ pub fn Machine(comptime T: type) type {
       return true;
     }
 
+    fn enterState(s: State) State {
+      return s;
+    }
+
+    fn enterImmediate(s: State) State {
+      std.debug.warn("We are in immediate\n", .{});
+      return s;
+    }
+
     pub const Transition = struct {
       from: []const u8,
       to: []const u8,
-      guard_fn: fn (data: *T) bool = defaultGuard
+      guard_fn: fn (data: *T) bool = defaultGuard,
+      is_immediate: bool = false
     };
 
     pub const State = struct {
       name: []const u8,
-      transitions: []const Transition
+      transitions: []const Transition,
+      immediates: []const Transition,
+      enter: fn (s: State) State = enterState
     };
 
     const Self = @This();
@@ -61,20 +73,37 @@ pub fn Machine(comptime T: type) type {
       };
     }
 
+    pub fn immediate(self: *Self, to: []const u8) Transition {
+      return Transition{
+        .from = "",
+        .to = to,
+        .is_immediate = true
+      };
+    }
+
     pub fn guard(self: *Self, t: *Transition, comptime gfn: fn (data: *T) bool) void {
       t.guard_fn = gfn;
     }
 
     pub fn state(self: *Self, name: []const u8, transitions: []const Transition) State {
-      return State{
+      var s = State{
         .name = name,
         .transitions = transitions
       };
+
+      for (transitions) |t| {
+        if(t.is_immediate) {
+          std.debug.warn("Found an immediate transition\n", .{});
+          s.enter = enterImmediate;
+        }
+      }
+
+      return s;
     }
 
     pub fn states(self: *Self, ss: []State) void {
       var initial = ss[0];
-      self.initial = initial;
+      self.initial = initial.enter(self, initial);
       self.currentStates = ss;
     }
 
@@ -92,7 +121,7 @@ pub fn Machine(comptime T: type) type {
 
         for (self.currentStates) |s| {
           if(stringEquals(s.name, t.to)) {
-            return s;
+            return s.enter(s);
           }
         }
       }
