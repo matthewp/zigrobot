@@ -1,7 +1,5 @@
 const std = @import("std");
 
-
-
 fn LinkedList(comptime T: type) type {
   return struct {
     pub const Node = struct {
@@ -19,6 +17,10 @@ fn LinkedList(comptime T: type) type {
 pub const Event = struct {
   name: []const u8
 };
+
+inline fn stringEquals(a: []const u8, b: []const u8) bool {
+  return std.mem.eql(u8, a, b);
+}
 
 pub fn Machine(comptime T: type) type {
   return struct {
@@ -83,15 +85,13 @@ pub fn Machine(comptime T: type) type {
       while (it) |node| : (it = node.next) {
         var t = node.data;
 
-        
-
         var guard_passed = t.guard_fn(self.data);
         if(!guard_passed) {
           continue;
         }
 
         for (self.currentStates) |s| {
-          if(std.mem.eql(u8, s.name, t.to)) {
+          if(stringEquals(s.name, t.to)) {
             return s;
           }
         }
