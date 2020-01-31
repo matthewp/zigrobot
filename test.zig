@@ -1,5 +1,6 @@
 const std = @import("std");
 const expectEqual = std.testing.expectEqual;
+const allocator = std.heap.page_allocator;
 
 const robot = @import("robot.zig");
 
@@ -8,20 +9,20 @@ test "Can do basic transitions" {
 
   const MyMachine = robot.Machine(Data);
 
-  var machine = MyMachine.init(&Data{});
+  var machine = MyMachine.init(&Data{}, allocator);
 
   var states = &[_]MyMachine.State {
-    machine.state("one", &[_]MyMachine.Transition {
+    try machine.state("one", &[_]MyMachine.Transition {
       machine.transition("next", "two")
     }),
-    machine.state("two", &[_]MyMachine.Transition {})
+    try machine.state("two", &[_]MyMachine.Transition {})
   };
 
   machine.states(states);
 
   var state = machine.initial;
 
-  state = machine.send(state, .{ .name = "next" });
+  state = try machine.send(state, .{ .name = "next" });
 
   expectEqual(state.name, "two");
 }
@@ -29,7 +30,7 @@ test "Can do basic transitions" {
 test "A guard can prevent a transition" {
   const Data = struct {};
   const MyMachine = robot.Machine(Data);
-  var machine = MyMachine.init(&Data{});
+  var machine = MyMachine.init(&Data{}, allocator);
   var transition = machine.transition("next", "two");
 
   const return_false = struct {
@@ -40,16 +41,16 @@ test "A guard can prevent a transition" {
   machine.guard(&transition, return_false);
 
   const states = &[_]MyMachine.State {
-    machine.state("one", &[_]MyMachine.Transition {
+    try machine.state("one", &[_]MyMachine.Transition {
       transition
     }),
-    machine.state("two", &[_]MyMachine.Transition {})
+    try machine.state("two", &[_]MyMachine.Transition {})
   };
 
   machine.states(states);
   var state = machine.initial;
 
-  state = machine.send(state, .{ .name = "next" });
+  state = try machine.send(state, .{ .name = "next" });
 
   expectEqual(state.name, "one");
 }
@@ -61,7 +62,7 @@ test "A guard can conditionally prevent a transition" {
 
   const MyMachine = robot.Machine(Data);
   var data = Data{};
-  var machine = MyMachine.init(&data);
+  var machine = MyMachine.init(&data, allocator);
 
   var transition = machine.transition("next", "two");
   const my_guard = struct {
@@ -72,19 +73,19 @@ test "A guard can conditionally prevent a transition" {
   machine.guard(&transition, my_guard);
 
   const states = &[_] MyMachine.State {
-    machine.state("one", &[_]MyMachine.Transition {
+    try machine.state("one", &[_]MyMachine.Transition {
       transition
     }),
-    machine.state("two", &[_]MyMachine.Transition {})
+    try machine.state("two", &[_]MyMachine.Transition {})
   };
 
   machine.states(states);
   var state = machine.initial;
 
-  state = machine.send(state, .{ .name = "next" });
+  state = try machine.send(state, .{ .name = "next" });
   expectEqual(state.name, "one");
 
   data.pass = true;
-  state = machine.send(state, .{ .name = "next" });
+  state = try machine.send(state, .{ .name = "next" });
   expectEqual(state.name, "two");
 }

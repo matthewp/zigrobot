@@ -1,4 +1,5 @@
 const std = @import("std");
+const Allocator = std.mem.Allocator;
 
 fn LinkedList(comptime T: type) type {
   return struct {
@@ -28,13 +29,12 @@ pub fn Machine(comptime T: type) type {
       return true;
     }
 
-    fn enterState(s: State) State {
+    fn enterState(self: *Self, s: State) State {
       return s;
     }
 
-    fn enterImmediate(s: State) State {
-      std.debug.warn("We are in immediate\n", .{});
-      return s;
+    fn enterImmediate(self: *Self, s: State) State {
+      return transitionTo(self, s, s.immediates);
     }
 
     pub const Transition = struct {
@@ -47,22 +47,24 @@ pub fn Machine(comptime T: type) type {
     pub const State = struct {
       name: []const u8,
       transitions: []const Transition,
-      immediates: []const Transition,
-      enter: fn (s: State) State = enterState
+      immediates: *ListOfTransitions,
+      enter: fn (self: *Self, s: State) State = enterState
     };
 
     const Self = @This();
-    const ListOfTransitions = LinkedList(Transition);
+    const ListOfTransitions = std.SinglyLinkedList(Transition);
 
     data: *T,
     initial: State,
     currentStates: []State,
+    allocator: *Allocator,
 
-    pub fn init(data: *T) Self {
+    pub fn init(data: *T, allocator: *Allocator) Self {
       return Self{
         .initial = undefined,
         .currentStates = &[_]State{},
         .data = data,
+        .allocator = allocator
       };
     }
 
@@ -85,29 +87,49 @@ pub fn Machine(comptime T: type) type {
       t.guard_fn = gfn;
     }
 
-    pub fn state(self: *Self, name: []const u8, transitions: []const Transition) State {
-      var s = State{
-        .name = name,
-        .transitions = transitions
-      };
+    pub fn state(self: *Self, name: []const u8, transitions: []const Transition) !State {
+      var immediates = try self.allocator.create(ListOfTransitions);
 
+      var last: *ListOfTransitions.Node = undefined;
+      var first = false;
       for (transitions) |t| {
         if(t.is_immediate) {
-          std.debug.warn("Found an immediate transition\n", .{});
-          s.enter = enterImmediate;
+          var node = try immediates.createNode(t, self.allocator);
+
+          if(first) {
+            immediates.insertAfter(last, node);
+          } else {
+            immediates.prepend(node);
+            first = true;
+            last = node;
+          }
         }
+      }
+
+      var s = State{
+        .name = name,
+        .transitions = transitions,
+        .immediates = immediates
+      };
+
+      if(first) {
+        s.enter = enterImmediate;
       }
 
       return s;
     }
 
     pub fn states(self: *Self, ss: []State) void {
+      self.currentStates = ss;
       var initial = ss[0];
       self.initial = initial.enter(self, initial);
-      self.currentStates = ss;
     }
 
-    fn transitionTo(self: *Self, current: State, candidates: ListOfTransitions, ev: Event) State {
+    fn initState(s: *State, allocator: *Allocator) !void {
+
+    }
+
+    fn transitionTo(self: *Self, current: State, candidates: *ListOfTransitions) State {
       // Run guards
       var it = candidates.first;
 
@@ -121,7 +143,7 @@ pub fn Machine(comptime T: type) type {
 
         for (self.currentStates) |s| {
           if(stringEquals(s.name, t.to)) {
-            return s.enter(s);
+            return s.enter(self, s);
           }
         }
       }
@@ -129,37 +151,39 @@ pub fn Machine(comptime T: type) type {
       return current;
     }
 
-    pub fn send(self: *Self, current: State, ev: Event) State {
+    pub fn send(self: *Self, current: State, ev: Event) !State {
       var transitions = current.transitions;
       var new_state = current;
+      var allocator = self.allocator;
 
-      var candidates = ListOfTransitions{
-        .first = null,
-        .last = null,
-        .len = 0
-      };
+      var candidates = ListOfTransitions.init();
 
-      var i: usize = 0;
-      var node: ListOfTransitions.Node = undefined;
+      var last: *ListOfTransitions.Node = undefined;
+      var first = false;
       for (transitions) |t| {
         if(std.mem.eql(u8, t.from, ev.name)) {
-          i += 1;
-          var last = node;
-          node = ListOfTransitions.Node{
-            .prev = &last,
-            .next = null,
-            .data = t
-          };
+          var node = try candidates.createNode(t, allocator);
 
-          candidates.last = &node;
-          candidates.len = i;
-          if(candidates.first == null) {
-            candidates.first = &node;
+          if(first) {
+            candidates.insertAfter(last, node);
+          } else {
+            candidates.prepend(node);
+            first = true;
+            last = node;
           }
         }
       }
 
-      return transitionTo(self, current, candidates, ev);
+      defer {
+        var it = candidates.first;
+        while (it) |node| {
+          var n = node.next;
+          candidates.destroyNode(node, allocator);
+          it = n;
+        }
+      }
+
+      return transitionTo(self, current, &candidates);
     }
   };
 }
