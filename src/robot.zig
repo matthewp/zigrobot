@@ -1,21 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-// TODO this can go away
-fn LinkedList(comptime T: type) type {
-  return struct {
-    pub const Node = struct {
-      prev: ?*Node,
-      next: ?*Node,
-      data: T,
-    };
-
-    first: ?*Node,
-    last:  ?*Node,
-    len:   usize,
-  };
-}
-
 pub const Event = struct {
   name: []const u8
 };
