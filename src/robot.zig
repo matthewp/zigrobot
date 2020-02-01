@@ -163,7 +163,7 @@ pub fn Machine(comptime T: type) type {
       var last: *ListOfTransitions.Node = undefined;
       var first = false;
       for (transitions) |t| {
-        if(std.mem.eql(u8, t.from, ev.name)) {
+        if(stringEquals(t.from, ev.name)) {
           var node = try candidates.createNode(t, allocator);
 
           if(first) {
