@@ -1,4 +1,6 @@
-const Builder = @import("std").build.Builder;
+const std = @import("std");
+const Builder = std.build.Builder;
+const LibExeObjStep = std.build.LibExeObjStep;
 
 pub fn build(b: *Builder) void {
     const mode = b.standardReleaseOptions();
@@ -6,13 +8,14 @@ pub fn build(b: *Builder) void {
     lib.setBuildMode(mode);
     lib.install();
 
-    var main_tests = b.addTest("src/test.zig");
-    main_tests.setBuildMode(mode);
-
-    var immediate_tests = b.addTest("src/test-immediate.zig");
-    immediate_tests.setBuildMode(mode);
-
     const test_step = b.step("test", "Run library tests");
-    test_step.dependOn(&main_tests.step);
-    test_step.dependOn(&immediate_tests.step);
+    var all_tests = [_]*LibExeObjStep{
+      b.addTest("src/test.zig"),
+      b.addTest("src/test-immediate.zig")
+    };
+
+    for (all_tests) |t| {
+      t.setBuildMode(mode);
+      test_step.dependOn(&t.step);
+    }
 }
