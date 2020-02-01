@@ -1,6 +1,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
+// TODO this can go away
 fn LinkedList(comptime T: type) type {
   return struct {
     pub const Node = struct {
@@ -66,6 +67,19 @@ pub fn Machine(comptime T: type) type {
         .data = data,
         .allocator = allocator
       };
+    }
+
+    pub fn deinit(self: Self) void {
+      var s = self.currentStates[0];
+      //for(self.currentStates) |s| {
+        var immediates = s.immediates;
+        var it = immediates.first;
+        while (it) |node| {
+          var n = node.next;
+          //immediates.destroyNode(node, self.allocator);
+          it = n;
+        }
+      //}
     }
 
     pub fn transition(self: *Self, from: []const u8, to: []const u8) Transition {

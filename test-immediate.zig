@@ -10,6 +10,7 @@ test "An immediate moves to the next state" {
   const MyMachine = robot.Machine(Data);
 
   var machine = MyMachine.init(&Data{}, allocator);
+  
 
   var states = &[_]MyMachine.State {
     try machine.state("one", &[_]MyMachine.Transition {
@@ -22,4 +23,6 @@ test "An immediate moves to the next state" {
 
   var state = machine.initial;
   expectEqual(state.name, "two");
+
+  defer machine.deinit();
 }
