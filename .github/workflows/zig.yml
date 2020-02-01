@@ -1,0 +1,20 @@
+name: Zig CI
+
+on: [push]
+
+jobs:
+  test:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Disabled
+        run: echo 'Tests currently disabled'
+
+    # steps:
+    #   - name: zig build test
+    #   - uses: actions/checkout@v1
+    #   - uses: goto-bus-stop/setup-zig@v1.2.0
+    #     with:
+    #       version: master
+    #   - run: zig build test
