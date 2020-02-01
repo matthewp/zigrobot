@@ -70,16 +70,18 @@ pub fn Machine(comptime T: type) type {
     }
 
     pub fn deinit(self: Self) void {
-      var s = self.currentStates[0];
-      //for(self.currentStates) |s| {
+      // Destroy immediates
+      for (self.currentStates) |s| {
         var immediates = s.immediates;
         var it = immediates.first;
         while (it) |node| {
           var n = node.next;
-          //immediates.destroyNode(node, self.allocator);
+          immediates.destroyNode(node, self.allocator);
           it = n;
         }
-      //}
+
+        self.allocator.destroy(immediates);
+      }
     }
 
     pub fn transition(self: *Self, from: []const u8, to: []const u8) Transition {
@@ -103,6 +105,7 @@ pub fn Machine(comptime T: type) type {
 
     pub fn state(self: *Self, name: []const u8, transitions: []const Transition) !State {
       var immediates = try self.allocator.create(ListOfTransitions);
+      immediates.first = null;
 
       var last: *ListOfTransitions.Node = undefined;
       var first = false;
